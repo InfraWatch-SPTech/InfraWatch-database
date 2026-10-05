@@ -163,6 +163,8 @@ INSERT INTO empresa (nome, cnpj, email, codigo) VALUES
 ('XPTO Brasil', '98.765.432/0001-10', 'suporte@xpto.com', 'K492MLQX'),
 ('Empresa para Teste', NULL, 'teste@empresa.com', 'NOVA0001');
 
+select * from empresa;
+
 -- =============================================================
 -- 3. SEEDS DE USUARIOS
 -- Senhas simples somente para ambiente academico/de teste.
@@ -269,6 +271,9 @@ VALUES
 ('Switch Central', 'Switch', '192.168.1.30', 'Online', 'Sala de servidores', 'Switch central da rede', 2, 2, 3),
 ('Servidor Web XPTO', 'Servidor', '192.168.2.10', 'Atencao', 'Datacenter principal', 'Servidor web da XPTO Brasil', 3, 3, 4);
 
+
+select * from equipamento;
+
 -- =============================================================
 -- 8. SEEDS DE COMPONENTES
 -- Os componentes funcionam como um catalogo. A associacao com
@@ -339,3 +344,20 @@ JOIN equipamento eq
 JOIN componente c
     ON c.idComponente = pa.fkComponente
 ORDER BY eq.idEquipamento, c.idComponente;
+
+-- SCRIPT JAVA JIRA USER --
+DROP USER IF EXISTS 'infra_watch_java_jira'@'%';
+CREATE USER 'infra_watch_java_jira'@'%' IDENTIFIED BY 'Urubu100';
+GRANT SELECT ON InfraWatch.* TO 'infra_watch_java_jira'@'%';
+FLUSH PRIVILEGES;
+
+DROP USER IF EXISTS 'infra_watch_captura'@'%';
+CREATE USER 'infra_watch_captura'@'%' IDENTIFIED BY 'Urubu100';
+GRANT SELECT ON InfraWatch.* TO 'infra_watch_captura'@'%';
+FLUSH PRIVILEGES;
+
+
+select * from equipamento; 
+select * from usuario; 
+
+
