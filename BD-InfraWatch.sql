@@ -106,6 +106,7 @@ CREATE TABLE equipamento (
     fkEmpresa INT NOT NULL,
     endereco_idEndereco INT,
     relatorio_idRelatorio INT,
+    hostname varchar (150), 
 
     CONSTRAINT fk_equipamento_empresa
         FOREIGN KEY (fkEmpresa)
@@ -353,11 +354,13 @@ FLUSH PRIVILEGES;
 
 DROP USER IF EXISTS 'infra_watch_captura'@'%';
 CREATE USER 'infra_watch_captura'@'%' IDENTIFIED BY 'Urubu100';
-GRANT SELECT ON InfraWatch.* TO 'infra_watch_captura'@'%';
+GRANT all privileges  ON InfraWatch.* TO 'infra_watch_captura'@'%';
 FLUSH PRIVILEGES;
 
 
 select * from equipamento; 
 select * from usuario; 
+select * from parametro_alerta ; 
+SELECT eq.nome AS equipamento, e.nome AS empresa, eq.hostname, pa.nomeMetrica AS metrica, c.nome AS componente FROM equipamento eq JOIN empresa e ON eq.fkEmpresa = e.idEmpresa LEFT JOIN parametro_alerta pa ON eq.idEquipamento = pa.fkEquipamento LEFT JOIN componente c ON pa.fkComponente = c.idComponente ORDER BY e.nome, eq.nome;
 
-
+delete from equipamento where idEquipamento = 1113232; 
