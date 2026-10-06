@@ -106,7 +106,6 @@ CREATE TABLE equipamento (
     fkEmpresa INT NOT NULL,
     endereco_idEndereco INT,
     relatorio_idRelatorio INT,
-    hostname varchar (150), 
 
     CONSTRAINT fk_equipamento_empresa
         FOREIGN KEY (fkEmpresa)
@@ -155,7 +154,7 @@ CREATE TABLE parametro_alerta (
 -- =============================================================
 -- 2. SEEDS DE EMPRESAS
 -- A empresa de codigo NOVA0001 fica sem usuarios para permitir
--- o teste da regra: primeiro usuario da empresa recebe nivel Admin.
+-- o teste da regra: primeiro usuario da empresa recebe nivel Administrador.
 -- =============================================================
 
 INSERT INTO empresa (nome, cnpj, email, codigo) VALUES
@@ -163,8 +162,6 @@ INSERT INTO empresa (nome, cnpj, email, codigo) VALUES
 ('Bananinha Ltda', '12.345.678/0001-90', 'contato@bananinha.com', 'X678JNSZ'),
 ('XPTO Brasil', '98.765.432/0001-10', 'suporte@xpto.com', 'K492MLQX'),
 ('Empresa para Teste', NULL, 'teste@empresa.com', 'NOVA0001');
-
-select * from empresa;
 
 -- =============================================================
 -- 3. SEEDS DE USUARIOS
@@ -181,13 +178,14 @@ VALUES
 ('Analista de Alertas', 'alertas@bananinha.com', '966666666', 'usuario123', 2),
 ('Auditor XPTO', 'auditor@xpto.com', '955555555', 'usuario123', 3);
 
--- Cada usuario recebe um nivel de acesso.
+-- O nivel define o limite máximo de ações de cada usuario.
+-- As permissoes adicionais refinam o que ele realmente pode acessar.
 INSERT INTO nivel_acesso (nome, descricao, fk_usuario) VALUES
 ('Root', 'Acesso completo ao sistema', 1),
-('Administrador', 'Administra a empresa e seus usuarios', 2),
-('Analista geral', 'Visualiza as principais dashboards', 3),
-('Analista de alertas', 'Visualiza e gerencia alertas', 4),
-('Auditor', 'Acesso somente para consulta', 5);
+('Administrador', 'Administra equipamentos e usuarios conforme as permissoes', 2),
+('Usuario', 'Visualiza equipamentos conforme as permissoes', 3),
+('Usuario', 'Visualiza equipamentos conforme as permissoes', 4),
+('Usuario', 'Visualiza equipamentos conforme as permissoes', 5);
 
 -- =============================================================
 -- 4. SEEDS DE PERMISSOES ESPECIFICAS
@@ -204,7 +202,10 @@ INSERT INTO permissao (nome, descricao) VALUES
 ('RELATORIOS_VISUALIZAR', 'Permite visualizar relatorios'),
 ('RELATORIOS_GERENCIAR', 'Permite criar, editar e excluir relatorios'),
 ('USUARIOS_VISUALIZAR', 'Permite visualizar usuarios da empresa'),
-('USUARIOS_GERENCIAR', 'Permite administrar usuarios e niveis de acesso');
+('USUARIOS_GERENCIAR', 'Permite administrar usuarios e niveis de acesso'),
+('EQUIPAMENTOS_SERVIDORES_VISUALIZAR', 'Limita a visualizacao aos servidores'),
+('EQUIPAMENTOS_NOTEBOOKS_VISUALIZAR', 'Limita a visualizacao aos notebooks e computadores'),
+('EQUIPAMENTOS_REDE_VISUALIZAR', 'Limita a visualizacao aos equipamentos de rede');
 
 -- Root: todas as permissoes.
 INSERT INTO permissoes_acesso (fkNivelAcesso, fkPermissao)
@@ -216,25 +217,30 @@ INSERT INTO permissoes_acesso (fkNivelAcesso, fkPermissao)
 SELECT 2, idPermissao
 FROM permissao;
 
--- Analista geral: apenas visualizacao.
+-- Usuario 3: visualiza todas as categorias de equipamento.
 INSERT INTO permissoes_acesso (fkNivelAcesso, fkPermissao) VALUES
 (3, 1),
 (3, 2),
 (3, 6),
-(3, 8);
+(3, 8),
+(3, 12),
+(3, 13),
+(3, 14);
 
--- Analista de alertas: dashboard geral e gestao de alertas.
+-- Usuario 4: visualiza somente notebooks e computadores
+-- e possui a permissao adicional de gerenciar usuarios.
 INSERT INTO permissoes_acesso (fkNivelAcesso, fkPermissao) VALUES
 (4, 1),
-(4, 6),
-(4, 7);
+(4, 2),
+(4, 11),
+(4, 13);
 
--- Auditor: apenas consulta de equipamentos, alertas e relatorios.
+-- Usuario 5: visualiza somente servidores e relatorios.
 INSERT INTO permissoes_acesso (fkNivelAcesso, fkPermissao) VALUES
 (5, 1),
 (5, 2),
-(5, 6),
-(5, 8);
+(5, 8),
+(5, 12);
 
 -- =============================================================
 -- 5. SEEDS DE ENDERECOS
@@ -270,10 +276,8 @@ VALUES
 ('Servidor Principal', 'Servidor', '192.168.1.10', 'Online', 'Datacenter A', 'Servidor principal da empresa', 2, 1, 1),
 ('Servidor de Backup', 'Servidor', '192.168.1.20', 'Online', 'Datacenter A', 'Servidor de copias de seguranca', 2, 1, 2),
 ('Switch Central', 'Switch', '192.168.1.30', 'Online', 'Sala de servidores', 'Switch central da rede', 2, 2, 3),
-('Servidor Web XPTO', 'Servidor', '192.168.2.10', 'Atencao', 'Datacenter principal', 'Servidor web da XPTO Brasil', 3, 3, 4);
-
-
-select * from equipamento;
+('Servidor Web XPTO', 'Servidor', '192.168.2.10', 'Atencao', 'Datacenter principal', 'Servidor web da XPTO Brasil', 3, 3, 4),
+('Notebook Financeiro', 'Notebook', '192.168.1.50', 'Online', 'Financeiro', 'Notebook usado pelo setor financeiro', 2, 1, NULL);
 
 -- =============================================================
 -- 8. SEEDS DE COMPONENTES
@@ -308,59 +312,3 @@ VALUES
 ('USO_RAM', 70.00, 90.00, '%', 1, 4, 2),
 ('USO_DISCO', 75.00, 90.00, '%', 1, 4, 3);
 
--- =============================================================
--- 10. CONSULTAS PARA CONFERENCIA
--- =============================================================
-
--- Usuarios, niveis e permissoes.
-SELECT
-    u.idUsuario,
-    u.nome AS usuario,
-    e.nome AS empresa,
-    na.nome AS nivel_acesso,
-    p.nome AS permissao
-FROM usuario u
-JOIN empresa e
-    ON e.idEmpresa = u.fkEmpresa
-LEFT JOIN nivel_acesso na
-    ON na.fk_usuario = u.idUsuario
-LEFT JOIN permissoes_acesso pa
-    ON pa.fkNivelAcesso = na.idnivel_acesso
-LEFT JOIN permissao p
-    ON p.idPermissao = pa.fkPermissao
-ORDER BY u.idUsuario, p.idPermissao;
-
--- Equipamentos, componentes e limites de alerta.
-SELECT
-    eq.nome AS equipamento,
-    c.nome AS componente,
-    pa.nomeMetrica,
-    pa.limite_atencao,
-    pa.limite_critico,
-    pa.unidade,
-    pa.ativo
-FROM parametro_alerta pa
-JOIN equipamento eq
-    ON eq.idEquipamento = pa.fkEquipamento
-JOIN componente c
-    ON c.idComponente = pa.fkComponente
-ORDER BY eq.idEquipamento, c.idComponente;
-
--- SCRIPT JAVA JIRA USER --
-DROP USER IF EXISTS 'infra_watch_java_jira'@'%';
-CREATE USER 'infra_watch_java_jira'@'%' IDENTIFIED BY 'Urubu100';
-GRANT SELECT ON InfraWatch.* TO 'infra_watch_java_jira'@'%';
-FLUSH PRIVILEGES;
-
-DROP USER IF EXISTS 'infra_watch_captura'@'%';
-CREATE USER 'infra_watch_captura'@'%' IDENTIFIED BY 'Urubu100';
-GRANT all privileges  ON InfraWatch.* TO 'infra_watch_captura'@'%';
-FLUSH PRIVILEGES;
-
-
-select * from equipamento; 
-select * from usuario; 
-select * from parametro_alerta ; 
-SELECT eq.nome AS equipamento, e.nome AS empresa, eq.hostname, pa.nomeMetrica AS metrica, c.nome AS componente FROM equipamento eq JOIN empresa e ON eq.fkEmpresa = e.idEmpresa LEFT JOIN parametro_alerta pa ON eq.idEquipamento = pa.fkEquipamento LEFT JOIN componente c ON pa.fkComponente = c.idComponente ORDER BY e.nome, eq.nome;
-
-delete from equipamento where idEquipamento = 1113232; 
