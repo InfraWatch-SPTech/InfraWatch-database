@@ -313,3 +313,7 @@ VALUES
 ('USO_RAM', 70.00, 90.00, '%', 1, 4, 2),
 ('USO_DISCO', 75.00, 90.00, '%', 1, 4, 3);
 
+CREATE USER 'infra_watch_captura'@'%' IDENTIFIED BY 'urubu100';
+GRANT all privileges ON InfraWatch.* TO 'infra_watch_captura'@'%';
+FLUSH PRIVILEGES;
+
