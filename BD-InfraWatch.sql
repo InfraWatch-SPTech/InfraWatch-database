@@ -366,3 +366,13 @@ SELECT eq.nome AS equipamento, e.nome AS empresa, eq.hostname, pa.nomeMetrica AS
 delete from equipamento where idEquipamento = 1113232; 
 
 select * from permissoes_acesso; 
+
+
+insert into componente (nome,tipo, descricao)values 
+('Processos', 'PROCESSOS', 'Todos os processos ativos no equipamento');
+
+insert into parametro_alerta (nomeMetrica, limite_atencao, limite_critico, unidade, ativo, fkEquipamento, fkComponente) values 
+('PROCESSOS_ATIVOS', 65.00, 80.00, 'Dict',1,1,6); 
+
+
+
