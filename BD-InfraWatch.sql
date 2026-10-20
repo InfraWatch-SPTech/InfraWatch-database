@@ -160,7 +160,7 @@ CREATE TABLE parametro_alerta (
 
 INSERT INTO empresa (nome, cnpj, email, codigo) VALUES
 ('InfraWatch', '12.345.555/0001-90', 'contato@infrawatch.com', 'X678JNLL'),
-('Bananinha Ltda', '12.345.678/0001-90', 'contato@bananinha.com', 'X678JNSZ'),
+('TechShield Ltda', '12.345.678/0001-90', 'contato@TechShield.com', 'X678JNSZ'),
 ('XPTO Brasil', '98.765.432/0001-10', 'suporte@xpto.com', 'K492MLQX'),
 ('Empresa para Teste', NULL, 'teste@empresa.com', 'NOVA0001');
 
@@ -176,9 +176,9 @@ INSERT INTO usuario
 (nome, email, telefone, senha, fkEmpresa)
 VALUES
 ('Root InfraWatch', 'admin@infrawatch.com', '999999999', 'admin123', 1),
-('Admin Bananinha', 'admin@bananinha.com', '988888888', 'admin123', 2),
-('Analista Geral', 'analista@bananinha.com', '977777777', 'usuario123', 2),
-('Analista de Alertas', 'alertas@bananinha.com', '966666666', 'usuario123', 2),
+('Admin TechShield', 'admin@TechShield.com', '988888888', 'admin123', 2),
+('Analista Geral', 'analista@TechShield.com', '977777777', 'usuario123', 2),
+('Analista de Alertas', 'alertas@TechShield.com', '966666666', 'usuario123', 2),
 ('Auditor XPTO', 'auditor@xpto.com', '955555555', 'usuario123', 3);
 
 -- Cada usuario recebe um nivel de acesso.
@@ -373,6 +373,8 @@ insert into componente (nome,tipo, descricao)values
 
 insert into parametro_alerta (nomeMetrica, limite_atencao, limite_critico, unidade, ativo, fkEquipamento, fkComponente) values 
 ('PROCESSOS_ATIVOS', 65.00, 80.00, 'Dict',1,1,6); 
+
+
 
 
 
