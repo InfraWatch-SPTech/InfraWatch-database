@@ -106,7 +106,8 @@ CREATE TABLE equipamento (
     fkEmpresa INT NOT NULL,
     endereco_idEndereco INT,
     relatorio_idRelatorio INT,
-    hostname varchar (150), 
+    hostname varchar (150),
+    ultimaAtualizacao DATETIME,
 
     CONSTRAINT fk_equipamento_empresa
         FOREIGN KEY (fkEmpresa)
