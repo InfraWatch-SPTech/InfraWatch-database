@@ -106,7 +106,7 @@ CREATE TABLE equipamento (
     fkEmpresa INT NOT NULL,
     endereco_idEndereco INT,
     relatorio_idRelatorio INT,
-    hostname varchar (150),
+    idMac varchar (150),
     ultimaAtualizacao DATETIME,
 
     CONSTRAINT fk_equipamento_empresa
@@ -128,6 +128,8 @@ CREATE TABLE componente (
     idComponente INT PRIMARY KEY AUTO_INCREMENT,
     nome VARCHAR(100) NOT NULL,
     tipo VARCHAR(50) NOT NULL,
+    codigo VARCHAR(200),
+    medida VARCHAR(50),
     descricao VARCHAR(200)
 );
 
@@ -177,7 +179,7 @@ INSERT INTO usuario
 (nome, email, telefone, senha, fkEmpresa)
 VALUES
 ('Root InfraWatch', 'admin@infrawatch.com', '999999999', 'admin123', 1),
-('Admin TechShield', 'admin@TechShield.com', '988888888', 'admin123', 2),
+('Mariana', 'mariana@techshield.com', '988888888', 'admin123', 2),
 ('Analista Geral', 'analista@TechShield.com', '977777777', 'usuario123', 2),
 ('Analista de Alertas', 'alertas@TechShield.com', '966666666', 'usuario123', 2),
 ('Auditor XPTO', 'auditor@xpto.com', '955555555', 'usuario123', 3);
@@ -361,21 +363,14 @@ FLUSH PRIVILEGES;
 
 select * from equipamento; 
 select * from usuario; 
-select * from parametro_alerta ; 
-SELECT eq.nome AS equipamento, e.nome AS empresa, eq.hostname, pa.nomeMetrica AS metrica, c.nome AS componente FROM equipamento eq JOIN empresa e ON eq.fkEmpresa = e.idEmpresa LEFT JOIN parametro_alerta pa ON eq.idEquipamento = pa.fkEquipamento LEFT JOIN componente c ON pa.fkComponente = c.idComponente ORDER BY e.nome, eq.nome;
+select * from parametro_alerta;
 
 delete from equipamento where idEquipamento = 1113232; 
 
 select * from permissoes_acesso; 
-
 
 insert into componente (nome,tipo, descricao)values 
 ('Processos', 'PROCESSOS', 'Todos os processos ativos no equipamento');
 
 insert into parametro_alerta (nomeMetrica, limite_atencao, limite_critico, unidade, ativo, fkEquipamento, fkComponente) values 
 ('PROCESSOS_ATIVOS', 65.00, 80.00, 'Dict',1,1,6); 
-
-
-
-
-
