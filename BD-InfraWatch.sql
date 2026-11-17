@@ -311,6 +311,20 @@ VALUES
 ('USO_RAM', 70.00, 90.00, '%', 1, 4, 2),
 ('USO_DISCO', 75.00, 90.00, '%', 1, 4, 3);
 
+UPDATE componente SET codigo = "psutil.cpu_percent(interval=1)" WHERE idComponente = 1;
+UPDATE componente SET codigo = "psutil.virtual_memory().percent" WHERE idComponente = 2;
+UPDATE componente SET codigo = "psutil.disk_usage('/').percent" WHERE idComponente = 3;
+UPDATE componente SET codigo = "código_psutil" WHERE idComponente = 4;
+UPDATE componente SET codigo = "código_psutil" WHERE idComponente = 5;
+UPDATE componente SET codigo = "" WHERE idComponente = 6;
+
+UPDATE componente SET medida = "%" WHERE idComponente = 1;
+UPDATE componente SET medida = "%" WHERE idComponente = 2;
+UPDATE componente SET medida = "%" WHERE idComponente = 3;
+UPDATE componente SET medida = "°" WHERE idComponente = 4;
+UPDATE componente SET medida = "kb" WHERE idComponente = 5;
+UPDATE componente SET medida = "" WHERE idComponente = 6;
+
 -- =============================================================
 -- 10. CONSULTAS PARA CONFERENCIA
 -- =============================================================
