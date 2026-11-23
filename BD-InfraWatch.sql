@@ -80,10 +80,10 @@ CREATE TABLE endereco (
     estado CHAR(2) NOT NULL,
     cep CHAR(8) NOT NULL,
     complemento VARCHAR(45),
-    empresa_idEmpresa INT NOT NULL,
+    fkEmpresa INT NOT NULL,
 
     CONSTRAINT fk_endereco_empresa
-        FOREIGN KEY (empresa_idEmpresa)
+        FOREIGN KEY (fkEmpresa)
         REFERENCES empresa(idEmpresa)
         ON DELETE CASCADE
 );
@@ -104,9 +104,10 @@ CREATE TABLE equipamento (
     localizacao VARCHAR(150),
     descricao VARCHAR(200),
     fkEmpresa INT NOT NULL,
-    endereco_idEndereco INT,
-    relatorio_idRelatorio INT,
+    fkEndereco INT,
+    fkRelatorio INT,
     idMac varchar (150),
+    valorDowntime FLOAT DEFAULT 100000.00,
     ultimaAtualizacao DATETIME,
 
     CONSTRAINT fk_equipamento_empresa
@@ -114,14 +115,41 @@ CREATE TABLE equipamento (
         REFERENCES empresa(idEmpresa),
 
     CONSTRAINT fk_equipamento_endereco
-        FOREIGN KEY (endereco_idEndereco)
+        FOREIGN KEY (fkEndereco)
         REFERENCES endereco(idEndereco)
         ON DELETE SET NULL,
 
     CONSTRAINT fk_equipamento_relatorio
-        FOREIGN KEY (relatorio_idRelatorio)
+        FOREIGN KEY (fkRelatorio)
         REFERENCES relatorio(idRelatorio)
         ON DELETE SET NULL
+);
+
+CREATE TABLE equipe (
+	idEquipe INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(100),
+    descricao VARCHAR(200)
+);
+
+CREATE TABLE usuario_equipamento (
+	fkUsuario INT,
+    fkEquipamento INT,
+    fkEquipe INT,
+    
+    CONSTRAINT pk_usuario_servidor
+		PRIMARY KEY (fkUsuario, fkEquipamento),
+        
+	CONSTRAINT fk_usuario_ue
+		FOREIGN KEY (fkUsuario)
+        REFERENCES usuario(idUsuario),
+        
+	CONSTRAINT fk_equip_ue
+		FOREIGN KEY (fkEquipamento)
+        REFERENCES equipamento(idEquipamento),
+        
+	CONSTRAINT fk_equipe_ue
+		FOREIGN KEY (fkEquipe)
+        REFERENCES equipe(idEquipe)
 );
 
 CREATE TABLE componente (
@@ -167,7 +195,6 @@ INSERT INTO empresa (nome, cnpj, email, codigo) VALUES
 ('XPTO Brasil', '98.765.432/0001-10', 'suporte@xpto.com', 'K492MLQX'),
 ('Empresa para Teste', NULL, 'teste@empresa.com', 'NOVA0001');
 
-select * from empresa;
 
 -- =============================================================
 -- 3. SEEDS DE USUARIOS
@@ -191,6 +218,19 @@ INSERT INTO nivel_acesso (nome, descricao, fk_usuario) VALUES
 ('Analista geral', 'Visualiza as principais dashboards', 3),
 ('Analista de alertas', 'Visualiza e gerencia alertas', 4),
 ('Auditor', 'Acesso somente para consulta', 5);
+
+-- =============================================================
+-- 3.1. SEEDS DE EQUIPES E VINCULOS USUARIO-EQUIPE
+-- Regra: usuarios de nivel administrativo (Root/Administrador)
+-- podem cuidar de varias equipes; usuarios comuns pertencem a
+-- apenas uma equipe.
+-- =============================================================
+
+INSERT INTO equipe (nome, descricao) VALUES
+('Equipe de Infraestrutura', 'Cuida dos servidores da empresa'),
+('Equipe de Rede', 'Monitora switches e conectividade'),
+('Equipe de Alertas', 'Trata e configura os alertas'),
+('Equipe de Auditoria', 'Acompanha relatorios e auditoria');
 
 -- =============================================================
 -- 4. SEEDS DE PERMISSOES ESPECIFICAS
@@ -244,7 +284,7 @@ INSERT INTO permissoes_acesso (fkNivelAcesso, fkPermissao) VALUES
 -- =============================================================
 
 INSERT INTO endereco
-(logradouro, numero, bairro, cidade, estado, cep, complemento, empresa_idEmpresa)
+(logradouro, numero, bairro, cidade, estado, cep, complemento, fkEmpresa)
 VALUES
 ('Avenida Paulista', '1000', 'Bela Vista', 'Sao Paulo', 'SP', '01310100', 'Datacenter A', 2),
 ('Rua das Flores', '250', 'Centro', 'Campinas', 'SP', '13010000', 'Sala de servidores', 2),
@@ -268,15 +308,68 @@ INSERT INTO relatorio (titulo, descricao, data_rel) VALUES
 
 INSERT INTO equipamento
 (nome, tipo, ip, status, localizacao, descricao,
- fkEmpresa, endereco_idEndereco, relatorio_idRelatorio)
+ fkEmpresa, fkEndereco, fkRelatorio)
 VALUES
 ('Servidor Principal', 'Servidor', '192.168.1.10', 'Online', 'Datacenter A', 'Servidor principal da empresa', 2, 1, 1),
 ('Servidor de Backup', 'Servidor', '192.168.1.20', 'Online', 'Datacenter A', 'Servidor de copias de seguranca', 2, 1, 2),
 ('Switch Central', 'Switch', '192.168.1.30', 'Online', 'Sala de servidores', 'Switch central da rede', 2, 2, 3),
 ('Servidor Web XPTO', 'Servidor', '192.168.2.10', 'Atencao', 'Datacenter principal', 'Servidor web da XPTO Brasil', 3, 3, 4);
 
+-- Servidores extras da TechShield (empresa 2) usados pelo simulador-captura.py.
+-- Junto com os ids 1 e 2, totalizam 5 servidores para a simulacao.
+INSERT INTO equipamento
+(idEquipamento, nome, tipo, ip, status, localizacao, descricao,
+ fkEmpresa, fkEndereco, fkRelatorio)
+VALUES
+(5, 'Servidor Simulado 01', 'Servidor', '192.168.1.41', 'Online', 'Datacenter A', 'Servidor usado na simulacao', 2, 1, 1),
+(6, 'Servidor Simulado 02', 'Servidor', '192.168.1.42', 'Online', 'Datacenter A', 'Servidor usado na simulacao', 2, 1, 2),
+(7, 'Servidor Simulado 03', 'Servidor', '192.168.1.43', 'Online', 'Sala de servidores', 'Servidor usado na simulacao', 2, 2, 3);
 
-select * from equipamento;
+-- =============================================================
+-- 7.1. SEEDS DE USUARIO_EQUIPAMENTO
+-- Tabela de associacao entre usuario, equipe e equipamento.
+-- Regras adotadas (coerentes com os seeds de usuario_equipe):
+--   * A PK e (fkUsuario, fkEquipamento), logo cada par usuario/equipamento
+--     aparece uma unica vez, com uma unica equipe responsavel.
+--   * fkEquipe sempre corresponde a uma equipe da qual o usuario ja
+--     participa em usuario_equipe.
+--   * Usuarios comuns atendem equipamentos da sua empresa; o Root, por
+--     ser administrador global, atende a todos os equipamentos.
+-- Equipe 1 = Infraestrutura (servidores), 2 = Rede (switch),
+-- 3 = Alertas, 4 = Auditoria.
+-- =============================================================
+
+INSERT INTO usuario_equipamento (fkUsuario, fkEquipamento, fkEquipe) VALUES
+-- Root (usuario 1): participa de todas as equipes e cobre todos os equipamentos.
+(1, 1, 1), -- Servidor Principal        -> Infraestrutura
+(1, 2, 1), -- Servidor de Backup        -> Infraestrutura
+(1, 3, 2), -- Switch Central            -> Rede
+(1, 4, 4), -- Servidor Web XPTO         -> Auditoria
+(1, 5, 1), -- Servidor Simulado 01      -> Infraestrutura
+(1, 6, 1), -- Servidor Simulado 02      -> Infraestrutura
+(1, 7, 1), -- Servidor Simulado 03      -> Infraestrutura
+-- Mariana (usuario 2, administradora TechShield): equipes 1 e 2.
+(2, 1, 1),
+(2, 2, 1),
+(2, 3, 2),
+(2, 5, 1),
+(2, 6, 1),
+(2, 7, 1),
+-- Analista Geral (usuario 3): apenas equipe de Infraestrutura.
+(3, 1, 1),
+(3, 2, 1),
+(3, 5, 1),
+(3, 6, 1),
+(3, 7, 1),
+-- Analista de Alertas (usuario 4): apenas equipe de Alertas.
+(4, 1, 3),
+(4, 2, 3),
+(4, 3, 3),
+(4, 5, 3),
+(4, 6, 3),
+(4, 7, 3),
+-- Auditor XPTO (usuario 5): apenas equipe de Auditoria, equipamento da empresa 3.
+(5, 4, 4);
 
 -- =============================================================
 -- 8. SEEDS DE COMPONENTES
@@ -284,12 +377,13 @@ select * from equipamento;
 -- os equipamentos acontece por meio da tabela parametro_alerta.
 -- =============================================================
 
-INSERT INTO componente (nome, tipo, descricao) VALUES
-('Processador', 'CPU', 'Uso do processador'),
-('Memoria RAM', 'RAM', 'Uso da memoria principal'),
-('Disco', 'ARMAZENAMENTO', 'Uso do armazenamento'),
-('Temperatura', 'TEMPERATURA', 'Temperatura interna do equipamento'),
-('Rede', 'REDE', 'Uso da rede do equipamento');
+INSERT INTO componente (nome, tipo, descricao, codigo, medida) VALUES
+('Processador', 'CPU', 'Uso do processador', 'psutil.cpu_percent(interval=1)', '%'),
+('Memoria RAM', 'RAM', 'Uso da memoria principal', 'psutil.virtual_memory().percent', '%'),
+('Disco', 'ARMAZENAMENTO', 'Uso do armazenamento', 'psutil.disk_usage("/").percent', '%'),
+('Temperatura', 'TEMPERATURA', 'Temperatura interna do equipamento', 'código_psutil', '°'),
+('Rede', 'REDE', 'Uso da rede do equipamento', 'código_psutil', 'kb'),
+('Processos', 'PROCESSOS', 'Todos os processos ativos no equipamento', '', '');
 
 -- =============================================================
 -- 9. SEEDS DE PARAMETROS DE ALERTA
@@ -309,59 +403,68 @@ VALUES
 ('USO_REDE', 70.00, 90.00, '%', 1, 3, 5),
 ('USO_CPU', 65.00, 85.00, '%', 1, 4, 1),
 ('USO_RAM', 70.00, 90.00, '%', 1, 4, 2),
-('USO_DISCO', 75.00, 90.00, '%', 1, 4, 3);
+('USO_DISCO', 75.00, 90.00, '%', 1, 4, 3),
+('PROCESSOS_ATIVOS', 65.00, 80.00, 'Dict',1,1,6);
 
-UPDATE componente SET codigo = "psutil.cpu_percent(interval=1)" WHERE idComponente = 1;
-UPDATE componente SET codigo = "psutil.virtual_memory().percent" WHERE idComponente = 2;
-UPDATE componente SET codigo = "psutil.disk_usage('/').percent" WHERE idComponente = 3;
-UPDATE componente SET codigo = "código_psutil" WHERE idComponente = 4;
-UPDATE componente SET codigo = "código_psutil" WHERE idComponente = 5;
-UPDATE componente SET codigo = "" WHERE idComponente = 6;
-
-UPDATE componente SET medida = "%" WHERE idComponente = 1;
-UPDATE componente SET medida = "%" WHERE idComponente = 2;
-UPDATE componente SET medida = "%" WHERE idComponente = 3;
-UPDATE componente SET medida = "°" WHERE idComponente = 4;
-UPDATE componente SET medida = "kb" WHERE idComponente = 5;
-UPDATE componente SET medida = "" WHERE idComponente = 6;
+-- Parametros dos servidores simulados (ids 5, 6 e 7) da TechShield.
+INSERT INTO parametro_alerta
+(nomeMetrica, limite_atencao, limite_critico, unidade, ativo, fkEquipamento, fkComponente)
+VALUES
+('USO_CPU', 70.00, 90.00, '%', 1, 5, 1),
+('USO_RAM', 75.00, 90.00, '%', 1, 5, 2),
+('USO_DISCO', 80.00, 95.00, '%', 1, 5, 3),
+('TEMPERATURA_CPU', 65.00, 80.00, 'C', 1, 5, 4),
+('PROCESSOS_ATIVOS', 65.00, 80.00, 'Dict', 1, 5, 6),
+('USO_CPU', 70.00, 90.00, '%', 1, 6, 1),
+('USO_RAM', 75.00, 90.00, '%', 1, 6, 2),
+('USO_DISCO', 80.00, 95.00, '%', 1, 6, 3),
+('TEMPERATURA_CPU', 65.00, 80.00, 'C', 1, 6, 4),
+('PROCESSOS_ATIVOS', 65.00, 80.00, 'Dict', 1, 6, 6),
+('USO_CPU', 70.00, 90.00, '%', 1, 7, 1),
+('USO_RAM', 75.00, 90.00, '%', 1, 7, 2),
+('USO_DISCO', 80.00, 95.00, '%', 1, 7, 3),
+('TEMPERATURA_CPU', 65.00, 80.00, 'C', 1, 7, 4),
+('PROCESSOS_ATIVOS', 65.00, 80.00, 'Dict', 1, 7, 6);
 
 -- =============================================================
--- 10. CONSULTAS PARA CONFERENCIA
+-- 10. USUÁRIOS PARA APLICAÇÕES
 -- =============================================================
 
--- Usuarios, niveis e permissoes.
+-- PARA DESCOBRIR EQUIPE DOS SERVIDORES
+SELECT idEmpresa, nome FROM empresa WHERE nome = 'TechShield LTDA';
 SELECT
-    u.idUsuario,
-    u.nome AS usuario,
-    e.nome AS empresa,
-    na.nome AS nivel_acesso,
-    p.nome AS permissao
-FROM usuario u
-JOIN empresa e
-    ON e.idEmpresa = u.fkEmpresa
-LEFT JOIN nivel_acesso na
-    ON na.fk_usuario = u.idUsuario
-LEFT JOIN permissoes_acesso pa
-    ON pa.fkNivelAcesso = na.idnivel_acesso
-LEFT JOIN permissao p
-    ON p.idPermissao = pa.fkPermissao
-ORDER BY u.idUsuario, p.idPermissao;
+	equipa.idEquipamento,
+	equipa.nome,
+    equipa.valorDowntime,
+    equipe.nome
+FROM empresa AS e
+JOIN equipamento AS equipa
+	ON equipa.fkEmpresa = e.idEmpresa
+JOIN usuario_equipamento AS ue
+	ON ue.fkEquipamento = equipa.idEquipamento
+JOIN equipe
+	ON equipe.idEquipe = ue.fkEquipe
+WHERE e.nome = 'TechShield LTDA'
+GROUP BY equipa.idEquipamento, equipe.nome;
 
--- Equipamentos, componentes e limites de alerta.
+
+-- PARA DESCOBRIR PARÂMETRO SERVIDORES
 SELECT
-    eq.nome AS equipamento,
-    c.nome AS componente,
-    pa.nomeMetrica,
-    pa.limite_atencao,
-    pa.limite_critico,
-    pa.unidade,
-    pa.ativo
-FROM parametro_alerta pa
-JOIN equipamento eq
-    ON eq.idEquipamento = pa.fkEquipamento
-JOIN componente c
-    ON c.idComponente = pa.fkComponente
-ORDER BY eq.idEquipamento, c.idComponente;
+	equipa.idEquipamento AS id,
+	equipa.nome AS nome,
+    equipa.valorDowntime AS valorDowntime,
+    p.limite_atencao AS atencao,
+    p.limite_critico AS critico,
+    c.nome AS componente
+FROM empresa AS e
+JOIN equipamento AS equipa
+	ON equipa.fkEmpresa = e.idEmpresa
+JOIN parametro_alerta AS p
+	ON p.fkEquipamento = equipa.idEquipamento
+JOIN componente AS c
+	ON p.fkComponente = c.idComponente
+WHERE e.idEmpresa = 2;
+
 
 -- SCRIPT JAVA JIRA USER --
 DROP USER IF EXISTS 'infra_watch_java_jira'@'%';
@@ -373,18 +476,3 @@ DROP USER IF EXISTS 'infra_watch_captura'@'%';
 CREATE USER 'infra_watch_captura'@'%' IDENTIFIED BY 'Urubu100';
 GRANT all privileges  ON InfraWatch.* TO 'infra_watch_captura'@'%';
 FLUSH PRIVILEGES;
-
-
-select * from equipamento; 
-select * from usuario; 
-select * from parametro_alerta;
-
-delete from equipamento where idEquipamento = 1113232; 
-
-select * from permissoes_acesso; 
-
-insert into componente (nome,tipo, descricao)values 
-('Processos', 'PROCESSOS', 'Todos os processos ativos no equipamento');
-
-insert into parametro_alerta (nomeMetrica, limite_atencao, limite_critico, unidade, ativo, fkEquipamento, fkComponente) values 
-('PROCESSOS_ATIVOS', 65.00, 80.00, 'Dict',1,1,6); 
